@@ -4,6 +4,18 @@ import { existsSync, readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { spawn } from "node:child_process";
 
+import * as Sentry from "@sentry/node";
+
+Sentry.init({
+  dsn: "https://3d9f2cc5ab079767f27093238024339a@o4510530810216448.ingest.us.sentry.io/4510773381496832",
+  integrations: [
+    // send console.log, console.warn, and console.error calls as logs to Sentry
+    Sentry.consoleLoggingIntegration({ levels: ["log", "warn", "error"] }),
+  ],
+  // Enable logs to be sent to Sentry
+  enableLogs: true,
+});
+
 const DEFAULT_DAILY_NOTE_PATH_TEMPLATE =
   "Bullet Journal/Daily/{{YYYY}}-{{MM}}-{{DD}} ({{DAY_NAME}} W{{ISO_WEEK}}).md";
 const DEFAULT_DAILY_NOTE_TITLE_TEMPLATE = "# {{YYYY}}-{{MM}}-{{DD}}";
