@@ -1,7 +1,7 @@
 {
   "interactionModel": {
     "languageModel": {
-      "invocationName": "capture notebook",
+      "invocationName": "quick capture",
       "intents": [
         {
           "name": "CaptureIntent",
