@@ -16,6 +16,8 @@ Sentry.init({
   enableLogs: true,
 });
 
+Sentry.logger.info('User triggered test log', { action: 'test_log' })
+
 const DEFAULT_DAILY_NOTE_PATH_TEMPLATE =
   "Bullet Journal/Daily/{{YYYY}}-{{MM}}-{{DD}} ({{DAY_NAME}} W{{ISO_WEEK}}).md";
 const DEFAULT_DAILY_NOTE_TITLE_TEMPLATE = "# {{YYYY}}-{{MM}}-{{DD}}";
