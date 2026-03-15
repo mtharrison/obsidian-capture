@@ -6,20 +6,6 @@ import { spawn } from "node:child_process";
 
 import * as Sentry from "@sentry/node";
 
-Sentry.init({
-  dsn: "https://2bcb16e344048a9ab9a2b1ac03f0f28c@o4510530810216448.ingest.us.sentry.io/4511050256941056",
-  // Setting this option to true will send default PII data to Sentry.
-  // For example, automatic IP address collection on events
-  sendDefaultPii: true,
-});
-
-try {
-  foo();
-} catch (e) {
-  Sentry.captureException(e);
-}
-
-
 const DEFAULT_DAILY_NOTE_PATH_TEMPLATE =
   "Bullet Journal/Daily/{{YYYY}}-{{MM}}-{{DD}} ({{DAY_NAME}} W{{ISO_WEEK}}).md";
 const DEFAULT_DAILY_NOTE_TITLE_TEMPLATE = "# {{YYYY}}-{{MM}}-{{DD}}";
@@ -29,6 +15,7 @@ loadEnvFile(join(process.cwd(), ".env"));
 // --- Config ---
 const PORT = process.env.PORT || 8080;
 const API_KEY = process.env.API_KEY;
+const SENTRY_DSN = process.env.SENTRY_DSN;
 const VAULT_PATH = process.env.VAULT_PATH || "/data/vault";
 const DAILY_NOTE_PATH_TEMPLATE =
   process.env.DAILY_NOTE_PATH_TEMPLATE || DEFAULT_DAILY_NOTE_PATH_TEMPLATE;
@@ -37,6 +24,15 @@ const DAILY_NOTE_TITLE_TEMPLATE =
 const CAPTURE_SECTION_HEADING =
   process.env.CAPTURE_SECTION_HEADING || "Captured";
 const CAPTURE_SECTION_MARKDOWN_HEADING = `## ${CAPTURE_SECTION_HEADING}`;
+
+if (SENTRY_DSN) {
+  Sentry.init({
+    dsn: SENTRY_DSN,
+    // Setting this option to true will send default PII data to Sentry.
+    // For example, automatic IP address collection on events
+    sendDefaultPii: true,
+  });
+}
 
 if (!API_KEY) {
   console.error("FATAL: API_KEY environment variable is required");
