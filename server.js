@@ -1,14 +1,26 @@
-import { createServer } from "node:http";
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { existsSync, readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { spawn } from "node:child_process";
 
 import * as Sentry from "@sentry/node";
+import express from "express";
+import AlexaSdk from "ask-sdk-core";
+import AlexaExpressAdapter from "ask-sdk-express-adapter";
+
+const {
+  SkillBuilders,
+  getIntentName,
+  getRequestType,
+  getSlotValue,
+} = AlexaSdk;
+const { ExpressAdapter } = AlexaExpressAdapter;
 
 const DEFAULT_DAILY_NOTE_PATH_TEMPLATE =
   "Bullet Journal/Daily/{{YYYY}}-{{MM}}-{{DD}} ({{DAY_NAME}} W{{ISO_WEEK}}).md";
 const DEFAULT_DAILY_NOTE_TITLE_TEMPLATE = "# {{YYYY}}-{{MM}}-{{DD}}";
+const DEFAULT_ALEXA_CAPTURE_INTENT_NAME = "CaptureIntent";
+const DEFAULT_ALEXA_CAPTURE_SLOT_NAME = "captureText";
 
 loadEnvFile(join(process.cwd(), ".env"));
 
@@ -17,6 +29,20 @@ const PORT = process.env.PORT || 8080;
 const API_KEY = process.env.API_KEY;
 const SENTRY_DSN = process.env.SENTRY_DSN;
 const VAULT_PATH = process.env.VAULT_PATH || "/data/vault";
+const ALEXA_SKILL_ID = process.env.ALEXA_SKILL_ID?.trim();
+const ALEXA_VERIFY_SIGNATURE = parseBoolean(
+  process.env.ALEXA_VERIFY_SIGNATURE,
+  true
+);
+const ALEXA_VERIFY_TIMESTAMP = parseBoolean(
+  process.env.ALEXA_VERIFY_TIMESTAMP,
+  true
+);
+const ALEXA_CAPTURE_INTENT_NAME =
+  process.env.ALEXA_CAPTURE_INTENT_NAME ||
+  DEFAULT_ALEXA_CAPTURE_INTENT_NAME;
+const ALEXA_CAPTURE_SLOT_NAME =
+  process.env.ALEXA_CAPTURE_SLOT_NAME || DEFAULT_ALEXA_CAPTURE_SLOT_NAME;
 const DAILY_NOTE_PATH_TEMPLATE =
   process.env.DAILY_NOTE_PATH_TEMPLATE || DEFAULT_DAILY_NOTE_PATH_TEMPLATE;
 const DAILY_NOTE_TITLE_TEMPLATE =
@@ -75,6 +101,16 @@ function loadEnvFile(filePath) {
   }
 }
 
+function parseBoolean(value, defaultValue) {
+  if (value == null || value === "") {
+    return defaultValue;
+  }
+
+  return !["0", "false", "no", "off"].includes(
+    value.trim().toLowerCase()
+  );
+}
+
 // --- Daily note path helpers ---
 
 function getISOWeekNumber(date) {
@@ -117,6 +153,27 @@ function getDailyNotePath(date) {
   );
 
   return join(VAULT_PATH, relativePath);
+}
+
+function normalizeCaptureText(rawText) {
+  if (typeof rawText !== "string") {
+    return "";
+  }
+
+  return rawText.replace(/\s+/gu, " ").trim();
+}
+
+async function captureText(rawText) {
+  const text = normalizeCaptureText(rawText);
+
+  if (!text) {
+    throw new Error("Missing 'text' field");
+  }
+
+  const filePath = await appendToCapture(text);
+  console.log(`Captured: "${text}" -> ${filePath}`);
+
+  return { filePath, text };
 }
 
 // --- File manipulation ---
@@ -191,6 +248,143 @@ async function appendToCapture(text) {
   return filePath;
 }
 
+// --- Alexa skill ---
+
+const LaunchRequestHandler = {
+  canHandle({ requestEnvelope }) {
+    return getRequestType(requestEnvelope) === "LaunchRequest";
+  },
+  handle(handlerInput) {
+    return handlerInput.responseBuilder
+      .speak("What would you like to capture?")
+      .reprompt("Say capture, followed by what you want me to save.")
+      .getResponse();
+  },
+};
+
+const CaptureIntentHandler = {
+  canHandle({ requestEnvelope }) {
+    return (
+      getRequestType(requestEnvelope) === "IntentRequest" &&
+      getIntentName(requestEnvelope) === ALEXA_CAPTURE_INTENT_NAME
+    );
+  },
+  async handle(handlerInput) {
+    const text = normalizeCaptureText(
+      getSlotValue(handlerInput.requestEnvelope, ALEXA_CAPTURE_SLOT_NAME)
+    );
+
+    if (!text) {
+      return handlerInput.responseBuilder
+        .speak(
+          "I didn't catch what you want to capture. Say capture followed by your note."
+        )
+        .reprompt("Say capture followed by your note.")
+        .getResponse();
+    }
+
+    await captureText(text);
+
+    return handlerInput.responseBuilder
+      .speak("Captured.")
+      .withSimpleCard("Obsidian Capture", text)
+      .getResponse();
+  },
+};
+
+const HelpIntentHandler = {
+  canHandle({ requestEnvelope }) {
+    return (
+      getRequestType(requestEnvelope) === "IntentRequest" &&
+      getIntentName(requestEnvelope) === "AMAZON.HelpIntent"
+    );
+  },
+  handle(handlerInput) {
+    return handlerInput.responseBuilder
+      .speak(
+        "Say capture followed by what you want to save. For example, say capture buy milk."
+      )
+      .reprompt("Try saying, capture buy milk.")
+      .getResponse();
+  },
+};
+
+const CancelAndStopIntentHandler = {
+  canHandle({ requestEnvelope }) {
+    return (
+      getRequestType(requestEnvelope) === "IntentRequest" &&
+      ["AMAZON.CancelIntent", "AMAZON.StopIntent"].includes(
+        getIntentName(requestEnvelope)
+      )
+    );
+  },
+  handle(handlerInput) {
+    return handlerInput.responseBuilder.speak("Okay.").getResponse();
+  },
+};
+
+const FallbackIntentHandler = {
+  canHandle({ requestEnvelope }) {
+    return (
+      getRequestType(requestEnvelope) === "IntentRequest" &&
+      getIntentName(requestEnvelope) === "AMAZON.FallbackIntent"
+    );
+  },
+  handle(handlerInput) {
+    return handlerInput.responseBuilder
+      .speak("Try saying, capture followed by what you want me to save.")
+      .reprompt("Say capture followed by your note.")
+      .getResponse();
+  },
+};
+
+const SessionEndedRequestHandler = {
+  canHandle({ requestEnvelope }) {
+    return getRequestType(requestEnvelope) === "SessionEndedRequest";
+  },
+  handle(handlerInput) {
+    return handlerInput.responseBuilder.getResponse();
+  },
+};
+
+const AlexaErrorHandler = {
+  canHandle() {
+    return true;
+  },
+  handle(handlerInput, error) {
+    console.error("Alexa error:", error);
+    Sentry.captureException(error);
+
+    return handlerInput.responseBuilder
+      .speak("Sorry, I couldn't save that right now. Please try again.")
+      .reprompt("Please try again.")
+      .getResponse();
+  },
+};
+
+let alexaSkillBuilder = SkillBuilders.custom()
+  .addRequestHandlers(
+    LaunchRequestHandler,
+    CaptureIntentHandler,
+    HelpIntentHandler,
+    CancelAndStopIntentHandler,
+    FallbackIntentHandler,
+    SessionEndedRequestHandler
+  )
+  .addErrorHandlers(AlexaErrorHandler)
+  .withCustomUserAgent("@mtharrison/obsidian-capture");
+
+if (ALEXA_SKILL_ID) {
+  alexaSkillBuilder = alexaSkillBuilder.withSkillId(ALEXA_SKILL_ID);
+}
+
+const alexaSkill = alexaSkillBuilder.create();
+const alexaAdapter = new ExpressAdapter(
+  alexaSkill,
+  ALEXA_VERIFY_SIGNATURE,
+  ALEXA_VERIFY_TIMESTAMP
+);
+
 // --- Start obsidian-headless sync ---
 
 function startSync() {
@@ -222,71 +416,56 @@ function startSync() {
 
 // --- HTTP server ---
 
-function parseBody(req) {
-  return new Promise((resolve, reject) => {
-    let data = "";
-    req.on("data", (chunk) => (data += chunk));
-    req.on("end", () => {
-      try {
-        resolve(JSON.parse(data));
-      } catch {
-        reject(new Error("Invalid JSON"));
-      }
-    });
-    req.on("error", reject);
-  });
-}
+const app = express();
 
-const server = createServer(async (req, res) => {
-  // Health check
-  if (req.method === "GET" && req.url === "/health") {
-    res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ status: "ok" }));
+app.get("/health", (_req, res) => {
+  res.json({ status: "ok" });
+});
+
+app.post("/capture", express.json(), async (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || authHeader !== `Bearer ${API_KEY}`) {
+    res.status(401).json({ error: "Unauthorized" });
     return;
   }
 
-  // Capture endpoint
-  if (req.method === "POST" && req.url === "/capture") {
-    // Auth check
-    const authHeader = req.headers["authorization"];
-    if (!authHeader || authHeader !== `Bearer ${API_KEY}`) {
-      res.writeHead(401, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ error: "Unauthorized" }));
+  try {
+    const { text } = await captureText(req.body?.text);
+    res.json({ status: "captured", text });
+  } catch (err) {
+    if (err.message === "Missing 'text' field") {
+      res.status(400).json({ error: err.message });
       return;
     }
 
-    try {
-      const body = await parseBody(req);
-      const text = body.text?.trim();
+    console.error("Capture error:", err);
+    Sentry.captureException(err);
+    res.status(500).json({ error: err.message });
+  }
+});
 
-      if (!text) {
-        res.writeHead(400, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ error: "Missing 'text' field" }));
-        return;
-      }
+app.post("/alexa", ...alexaAdapter.getRequestHandlers());
 
-      const filePath = await appendToCapture(text);
-      console.log(`Captured: "${text}" → ${filePath}`);
-
-      res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ status: "captured", text }));
-    } catch (err) {
-      console.error("Capture error:", err);
-      res.writeHead(500, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ error: err.message }));
-    }
+app.use((err, _req, res, next) => {
+  if (err?.type === "entity.parse.failed") {
+    res.status(400).json({ error: "Invalid JSON" });
     return;
   }
 
-  // 404
-  res.writeHead(404, { "Content-Type": "application/json" });
-  res.end(JSON.stringify({ error: "Not found" }));
+  next(err);
+});
+
+app.use((req, res) => {
+  res.status(404).json({ error: "Not found" });
 });
 
 // --- Boot ---
 startSync();
 
-server.listen(PORT, () => {
+app.listen(PORT, () => {
   console.log(`Capture webhook listening on :${PORT}`);
   console.log(`Vault path: ${VAULT_PATH}`);
+  console.log(
+    `Alexa endpoint: /alexa (signature verification: ${ALEXA_VERIFY_SIGNATURE}, timestamp verification: ${ALEXA_VERIFY_TIMESTAMP})`
+  );
 });

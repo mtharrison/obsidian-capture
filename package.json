@@ -8,6 +8,9 @@
   },
   "dependencies": {
     "@sentry/node": "^10.43.0",
+    "ask-sdk-core": "^2.14.0",
+    "ask-sdk-express-adapter": "^2.14.0",
+    "express": "^5.2.1",
     "obsidian-headless": "^0.0.7"
   }
 }

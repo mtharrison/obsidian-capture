@@ -40,6 +40,11 @@ Optional:
 
 - `PORT`: HTTP port for the webhook server. Defaults to `8080`
 - `TZ`: timezone used by Node's local date functions. Set this if you do not want the host default timezone
+- `ALEXA_SKILL_ID`: skill ID from the Alexa developer console. If set, incoming Alexa requests must match it
+- `ALEXA_VERIFY_SIGNATURE`: whether to verify Alexa request signatures. Defaults to `true`
+- `ALEXA_VERIFY_TIMESTAMP`: whether to verify Alexa request timestamps. Defaults to `true`
+- `ALEXA_CAPTURE_INTENT_NAME`: intent name the Alexa endpoint listens for. Defaults to `CaptureIntent`
+- `ALEXA_CAPTURE_SLOT_NAME`: slot name used to extract capture text. Defaults to `captureText`
 - `DAILY_NOTE_TITLE_TEMPLATE`: markdown title used if the daily note does not exist yet
 - `CAPTURE_SECTION_HEADING`: section name used for captured entries
 
@@ -168,7 +173,27 @@ curl -s -X POST https://your-capture-host.example.com/capture \
 
 Then bind it to a hotkey via Raycast, Alfred, Hammerspoon, or Automator.
 
-### Alexa
+### Alexa custom skill (direct)
+
+The server exposes a dedicated Alexa endpoint at:
+
+```text
+https://your-capture-host.example.com/alexa
+```
+
+To use it:
+
+1. Create a custom skill in the Alexa developer console.
+2. Set the skill endpoint to `https://your-capture-host.example.com/alexa`.
+3. Copy your skill ID into `ALEXA_SKILL_ID`.
+4. Import or recreate the interaction model from [alexa/interaction-model.json](/Users/matt/Developer/obsidian-capture/alexa/interaction-model.json).
+5. Build the model, then test with phrases like:
+   - "Alexa, open capture notebook"
+   - "Alexa, ask capture notebook to capture buy milk"
+
+If you need to hit `/alexa` from a local unsigned tool during development, temporarily set `ALEXA_VERIFY_SIGNATURE="false"` and `ALEXA_VERIFY_TIMESTAMP="false"`. Leave both enabled in production.
+
+### Alexa via IFTTT (alternative)
 
 **Option A: Alexa → IFTTT → Webhook**
 
@@ -231,6 +256,12 @@ Appends a task to today's daily note under the configured capture section (defau
 - If today's daily note exists with the configured capture heading: appends `- [ ] text` at the end of that section
 - If today's daily note exists without the configured capture heading: adds the heading and task at the end
 - If today's daily note doesn't exist: creates a minimal note with the heading and task
+
+### `POST /alexa`
+
+Accepts Alexa custom skill requests and supports the `CaptureIntent` model in [alexa/interaction-model.json](/Users/matt/Developer/obsidian-capture/alexa/interaction-model.json).
+
+By default, the endpoint verifies Alexa request signatures and timestamps. If `ALEXA_SKILL_ID` is set, it also rejects requests for any other skill ID.
 
 ### `GET /health`
 

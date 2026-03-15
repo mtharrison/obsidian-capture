@@ -1,0 +1,45 @@
+{
+  "interactionModel": {
+    "languageModel": {
+      "invocationName": "capture notebook",
+      "intents": [
+        {
+          "name": "CaptureIntent",
+          "slots": [
+            {
+              "name": "captureText",
+              "type": "AMAZON.SearchQuery"
+            }
+          ],
+          "samples": [
+            "capture {captureText}",
+            "save {captureText}",
+            "remember {captureText}",
+            "note {captureText}"
+          ]
+        },
+        {
+          "name": "AMAZON.CancelIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.FallbackIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.HelpIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.NavigateHomeIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.StopIntent",
+          "samples": []
+        }
+      ],
+      "types": []
+    }
+  }
+}
