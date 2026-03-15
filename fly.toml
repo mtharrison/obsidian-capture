@@ -1,0 +1,22 @@
+app = "obsidian-capture"
+primary_region = "lhr"
+
+[build]
+
+[env]
+  VAULT_PATH = "/data/vault"
+  TZ = "Europe/London"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+
+[mounts]
+  source = "vault_data"
+  destination = "/data"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

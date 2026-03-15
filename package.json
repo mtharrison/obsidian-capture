@@ -1,0 +1,12 @@
+{
+  "name": "@mtharrison/obsidian-capture",
+  "version": "1.0.0",
+  "description": "Webhook server for capturing tasks into Obsidian via headless sync",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "obsidian-headless": "^0.0.7"
+  }
+}

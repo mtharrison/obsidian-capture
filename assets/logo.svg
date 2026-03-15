@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" role="img" aria-labelledby="title desc">
+  <title>@mtharrison/obsidian-capture logo</title>
+  <desc>A stylized note card with an obsidian crystal and a captured task check mark.</desc>
+  <defs>
+    <linearGradient id="bg" x1="36" y1="24" x2="204" y2="216" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0f766e"/>
+      <stop offset="1" stop-color="#155e75"/>
+    </linearGradient>
+    <linearGradient id="sheet" x1="60" y1="48" x2="182" y2="186" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#e2e8f0"/>
+    </linearGradient>
+    <linearGradient id="crystal" x1="120" y1="86" x2="120" y2="184" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#111827"/>
+      <stop offset="1" stop-color="#334155"/>
+    </linearGradient>
+  </defs>
+  <rect x="24" y="24" width="192" height="192" rx="44" fill="url(#bg)"/>
+  <path d="M78 56h66l38 38v76c0 8.8-7.2 16-16 16H78c-8.8 0-16-7.2-16-16V72c0-8.8 7.2-16 16-16Z" fill="url(#sheet)"/>
+  <path d="M144 56v30c0 6.6 5.4 12 12 12h26" fill="#cbd5e1"/>
+  <path d="M90 86h34" stroke="#94a3b8" stroke-width="10" stroke-linecap="round"/>
+  <path d="M90 110h30" stroke="#cbd5e1" stroke-width="10" stroke-linecap="round"/>
+  <path d="M90 134h20" stroke="#cbd5e1" stroke-width="10" stroke-linecap="round"/>
+  <path d="M120 86 98 114 105 166 120 184 135 166 142 114 120 86Z" fill="url(#crystal)"/>
+  <path d="M120 86V184M98 114H142M105 166H135" stroke="#64748b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" opacity=".5"/>
+  <circle cx="164" cy="158" r="24" fill="#f97316"/>
+  <path d="m153 158 8 8 16-20" fill="none" stroke="#fff7ed" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
