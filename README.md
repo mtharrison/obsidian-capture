@@ -93,7 +93,7 @@ curl http://localhost:8080/health
 curl -X POST http://localhost:8080/capture \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_API_KEY" \
-  -d '{"text": "Test capture from terminal"}'
+  -d '{"text": "Test capture from terminal", "from": "terminal"}'
 ```
 
 If you deploy this somewhere else, replace `http://localhost:8080` with your public base URL such as `https://capture.example.com`.
@@ -150,7 +150,7 @@ Create a new Shortcut called **"Capture to Obsidian"**:
    - URL: `https://your-capture-host.example.com/capture`
    - Method: POST
    - Headers: `Authorization` = `Bearer YOUR_API_KEY`
-   - Request Body: JSON — key `text`, value: *Provided Input* (magic variable from step 1)
+   - Request Body: JSON — keys `text` = *Provided Input* and optional `from` = `shortcut`
 
 That's it — two actions. Works via:
 - **Siri** (Watch/Phone/Mac): "Hey Siri, Capture to Obsidian"
@@ -204,7 +204,7 @@ If you need to hit `/alexa` from a local unsigned tool during development, tempo
    - Method: POST
    - Content Type: application/json
    - Headers: `Authorization: Bearer YOUR_API_KEY`
-   - Body: `{"text": "{{TextField}}"}`
+   - Body: `{"text": "{{TextField}}", "from": "ifttt"}`
 
 Usage: "Alexa, trigger capture buy milk"
 
@@ -244,18 +244,19 @@ Appends a task to today's daily note under the configured capture section (defau
 
 **Body:**
 ```json
-{"text": "Buy milk"}
+{"text": "Buy milk", "from": "Shortcut"}
 ```
 
 **Response:**
 ```json
-{"status": "captured", "text": "Buy milk"}
+{"status": "captured", "text": "Buy milk (_added by Shortcut_)"}
 ```
 
 **Behavior:**
 - If today's daily note exists with the configured capture heading: appends `- [ ] text` at the end of that section
 - If today's daily note exists without the configured capture heading: adds the heading and task at the end
 - If today's daily note doesn't exist: creates a minimal note with the heading and task
+- If `from` is provided and non-empty: appends ` (_added by from_)` to the captured task text
 
 ### `POST /alexa`
 

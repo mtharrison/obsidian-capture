@@ -274,12 +274,16 @@ function summarizeResponseBody(body) {
 
 function summarizeCapturePayload(body) {
   const text = normalizeCaptureText(body?.text);
+  const from = normalizeCaptureText(body?.from);
 
   return {
     route: "/capture",
     textPresent: Boolean(text),
     textLength: text.length,
     textPreview: text ? truncateForLog(text, 120) : null,
+    fromPresent: Boolean(from),
+    fromLength: from.length,
+    fromPreview: from ? truncateForLog(from, 120) : null,
   };
 }
 
@@ -488,12 +492,23 @@ function normalizeCaptureText(rawText) {
   return rawText.replace(/\s+/gu, " ").trim();
 }
 
-async function captureText(rawText) {
+function formatCaptureText(rawText, rawFrom) {
   const text = normalizeCaptureText(rawText);
+  const from = normalizeCaptureText(rawFrom);
 
   if (!text) {
     throw new Error("Missing 'text' field");
   }
+
+  if (!from) {
+    return text;
+  }
+
+  return `${text} (_added by ${from}_)`;
+}
+
+async function captureText(rawText, rawFrom) {
+  const text = formatCaptureText(rawText, rawFrom);
 
   const filePath = await appendToCapture(text);
   console.log(`Captured: "${text}" -> ${filePath}`);
@@ -777,7 +792,7 @@ app.post(
     }
 
     try {
-      const { text } = await captureText(req.body?.text);
+      const { text } = await captureText(req.body?.text, req.body?.from);
       res.json({ status: "captured", text });
     } catch (err) {
       if (err.message === "Missing 'text' field") {
